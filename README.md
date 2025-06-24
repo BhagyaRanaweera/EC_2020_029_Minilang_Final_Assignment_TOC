@@ -1,6 +1,6 @@
 # MiniLang Analyzer
 
-A compiler front-end for a simple C-like language, MiniLang, implementing:
+A compiler front-end for a simple CJAVA-like language, MiniLang, implementing:
 
 - ✅ Lexical Analysis  
 - ✅ Syntax Analysis  
