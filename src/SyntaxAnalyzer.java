@@ -1,4 +1,29 @@
-// === SyntaxAnalyzer.java (Updated in SimpleParser style) ===
+/**
+ * SyntaxAnalyzer.java
+ * --------------------
+ * This class performs **Syntax Analysis** (Parsing) for the MiniLang compiler.
+ * It uses recursive descent parsing in a SimpleParser style to verify whether
+ * the input sequence of tokens (from the Lexical Analyzer) forms a syntactically
+ * valid MiniLang program.
+ *
+ * Supported Statements:
+ * - Variable Declaration: e.g., int x;
+ * - Assignment: e.g., x = 5;
+ * - If-Else Statements
+ * - While Loops
+ * - Print Statements
+ *
+ * Supported Expressions:
+ * - Arithmetic: +, -, *, /
+ * - Comparisons: >, <, ==, !=
+ *
+ * Key Features:
+ * - Reports syntax errors with precise line-level diagnostics.
+ * - Gracefully handles malformed input with proper error messages.
+ * - Builds an internal AST (Abstract Syntax Tree) for valid MiniLang code.
+ */
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class SyntaxAnalyzer {
@@ -10,105 +35,154 @@ public class SyntaxAnalyzer {
         this.tokens = tokens;
     }
 
-    public void parse() {
+    /** Entry point: Parses the entire token list and returns a Block of statements */
+    public Block parse() {
+        List<Statement> statements = new ArrayList<>();
         while (!isAtEnd()) {
-            parseStatement();
+            try {
+                statements.add(parseStatement());
+            } catch (RuntimeException e) {
+                System.err.println("Error while parsing statement: " + e.getMessage());
+                System.exit(1);
+            }
         }
-        System.out.println("✅ Syntax Analysis: Passed.");
+        System.out.println(" Syntax Analysis: Passed.");
+        return new Block(statements);
     }
 
-    private void parseStatement() {
-        if (match(LexicalAnalyzer.TokenType.INT)) {
-            parseDeclaration();
-        } else if (check(LexicalAnalyzer.TokenType.IDENTIFIER)) {
-            parseAssignment();
-        } else if (match(LexicalAnalyzer.TokenType.IF)) {
-            parseIfStatement();
-        } else if (match(LexicalAnalyzer.TokenType.WHILE)) {
-            parseWhileStatement();
-        } else if (match(LexicalAnalyzer.TokenType.PRINT)) {
-            parsePrintStatement();
-        } else {
-            error("Expected a statement.");
+    private Statement parseStatement() {
+        try {
+            if (match(LexicalAnalyzer.TokenType.INT)) {
+                return parseDeclaration();
+            } else if (check(LexicalAnalyzer.TokenType.IDENTIFIER)) {
+                return parseAssignment();
+            } else if (match(LexicalAnalyzer.TokenType.IF)) {
+                return parseIfStatement();
+            } else if (match(LexicalAnalyzer.TokenType.WHILE)) {
+                return parseWhileStatement();
+            } else if (match(LexicalAnalyzer.TokenType.PRINT)) {
+                return parsePrintStatement();
+            } else {
+                error("Expected a valid statement.");
+                return null;
+            }
+        } catch (RuntimeException e) {
+            error("Invalid statement format.");
+            return null;
         }
     }
 
-    private void parseDeclaration() {
-        consume(LexicalAnalyzer.TokenType.IDENTIFIER, "Expected variable name after 'int'.");
+    private Declaration parseDeclaration() {
+        String varName = consume(LexicalAnalyzer.TokenType.IDENTIFIER, "Expected variable name after 'int'.").value;
         consume(LexicalAnalyzer.TokenType.SEMICOLON, "Expected ';' after declaration.");
+        return new Declaration(varName);
     }
 
-    private void parseAssignment() {
-        consume(LexicalAnalyzer.TokenType.IDENTIFIER, "Expected variable name.");
+    private Assignment parseAssignment() {
+        String varName = consume(LexicalAnalyzer.TokenType.IDENTIFIER, "Expected variable name.").value;
         consume(LexicalAnalyzer.TokenType.ASSIGN, "Expected '=' in assignment.");
-        parseExpression();
+        Expression expr = parseExpression();
         consume(LexicalAnalyzer.TokenType.SEMICOLON, "Expected ';' after assignment.");
+        return new Assignment(varName, expr);
     }
 
-    private void parseIfStatement() {
+    private IfStatement parseIfStatement() {
         consume(LexicalAnalyzer.TokenType.LPAREN, "Expected '(' after 'if'.");
-        parseExpression();
+        Expression condition = parseExpression();
         consume(LexicalAnalyzer.TokenType.RPAREN, "Expected ')' after condition.");
-        parseBlock();
+        Block thenBlock = parseBlock();
+        Block elseBlock = null;
         if (match(LexicalAnalyzer.TokenType.ELSE)) {
-            parseBlock();
+            elseBlock = parseBlock();
         }
+        return new IfStatement(condition, thenBlock, elseBlock);
     }
 
-    private void parseWhileStatement() {
+    private WhileStatement parseWhileStatement() {
         consume(LexicalAnalyzer.TokenType.LPAREN, "Expected '(' after 'while'.");
-        parseExpression();
+        Expression condition = parseExpression();
         consume(LexicalAnalyzer.TokenType.RPAREN, "Expected ')' after condition.");
-        parseBlock();
+        Block body = parseBlock();
+        return new WhileStatement(condition, body);
     }
 
-    private void parsePrintStatement() {
+    private PrintStatement parsePrintStatement() {
         consume(LexicalAnalyzer.TokenType.LPAREN, "Expected '(' after 'print'.");
-        parseExpression();
+        Expression expr = parseExpression();
         consume(LexicalAnalyzer.TokenType.RPAREN, "Expected ')' after expression.");
         consume(LexicalAnalyzer.TokenType.SEMICOLON, "Expected ';' after print statement.");
+        return new PrintStatement(expr);
     }
 
-    private void parseBlock() {
+    private Block parseBlock() {
         consume(LexicalAnalyzer.TokenType.LBRACE, "Expected '{' to start block.");
+        List<Statement> statements = new ArrayList<>();
         while (!check(LexicalAnalyzer.TokenType.RBRACE) && !isAtEnd()) {
-            parseStatement();
+            statements.add(parseStatement());
         }
         consume(LexicalAnalyzer.TokenType.RBRACE, "Expected '}' to close block.");
+        return new Block(statements);
     }
 
-    private void parseExpression() {
-        parseArithmetic();
-        if (match(LexicalAnalyzer.TokenType.GREATER) || match(LexicalAnalyzer.TokenType.LESS) ||
-                match(LexicalAnalyzer.TokenType.EQUAL) || match(LexicalAnalyzer.TokenType.NOTEQUAL)) {
-            parseArithmetic();
+    /** Parses arithmetic or comparison expressions */
+    private Expression parseExpression() {
+        Expression left = parseArithmetic();
+        if (match(LexicalAnalyzer.TokenType.GREATER)) {
+            return new BinaryExpression(left, BinaryExpression.Operator.GREATER, parseArithmetic());
+        } else if (match(LexicalAnalyzer.TokenType.LESS)) {
+            return new BinaryExpression(left, BinaryExpression.Operator.LESS, parseArithmetic());
+        } else if (match(LexicalAnalyzer.TokenType.EQUAL)) {
+            return new BinaryExpression(left, BinaryExpression.Operator.EQUAL, parseArithmetic());
+        } else if (match(LexicalAnalyzer.TokenType.NOTEQUAL)) {
+            return new BinaryExpression(left, BinaryExpression.Operator.NOTEQUAL, parseArithmetic());
         }
+        return left;
     }
 
-    private void parseArithmetic() {
-        parseTerm();
-        while (match(LexicalAnalyzer.TokenType.PLUS) || match(LexicalAnalyzer.TokenType.MINUS)) {
-            parseTerm();
+    private Expression parseArithmetic() {
+        Expression expr = parseTerm();
+        while (true) {
+            if (match(LexicalAnalyzer.TokenType.PLUS)) {
+                expr = new BinaryExpression(expr, BinaryExpression.Operator.PLUS, parseTerm());
+            } else if (match(LexicalAnalyzer.TokenType.MINUS)) {
+                expr = new BinaryExpression(expr, BinaryExpression.Operator.MINUS, parseTerm());
+            } else {
+                break;
+            }
         }
+        return expr;
     }
 
-    private void parseTerm() {
-        parseFactor();
-        while (match(LexicalAnalyzer.TokenType.MULT) || match(LexicalAnalyzer.TokenType.DIV)) {
-            parseFactor();
+    private Expression parseTerm() {
+        Expression expr = parseFactor();
+        while (true) {
+            if (match(LexicalAnalyzer.TokenType.MULT)) {
+                expr = new BinaryExpression(expr, BinaryExpression.Operator.MULT, parseFactor());
+            } else if (match(LexicalAnalyzer.TokenType.DIV)) {
+                expr = new BinaryExpression(expr, BinaryExpression.Operator.DIV, parseFactor());
+            } else {
+                break;
+            }
         }
+        return expr;
     }
 
-    private void parseFactor() {
-        if (match(LexicalAnalyzer.TokenType.IDENTIFIER) || match(LexicalAnalyzer.TokenType.NUMBER)) {
-            return;
+    private Expression parseFactor() {
+        if (match(LexicalAnalyzer.TokenType.NUMBER)) {
+            return new NumberLiteral(Integer.parseInt(previous().value));
+        } else if (match(LexicalAnalyzer.TokenType.IDENTIFIER)) {
+            return new Variable(previous().value);
         } else if (match(LexicalAnalyzer.TokenType.LPAREN)) {
-            parseExpression();
+            Expression expr = parseExpression();
             consume(LexicalAnalyzer.TokenType.RPAREN, "Expected ')' after expression.");
+            return expr;
         } else {
-            error("Expected number, variable, or expression.");
+            error("Expected number, variable, or '(' expression ')'.");
+            return null;
         }
     }
+
+    // === Utility Methods ===
 
     private boolean match(LexicalAnalyzer.TokenType type) {
         if (check(type)) {
@@ -118,12 +192,10 @@ public class SyntaxAnalyzer {
         return false;
     }
 
-    private void consume(LexicalAnalyzer.TokenType type, String errorMessage) {
-        if (check(type)) {
-            advance();
-        } else {
-            error(errorMessage);
-        }
+    private LexicalAnalyzer.Token consume(LexicalAnalyzer.TokenType type, String message) {
+        if (check(type)) return advance();
+        error(message);
+        return null;
     }
 
     private boolean check(LexicalAnalyzer.TokenType type) {
@@ -148,8 +220,8 @@ public class SyntaxAnalyzer {
     }
 
     private void error(String message) {
-        System.err.println(" Syntax Error: " + message + " at token: " +
-                (isAtEnd() ? "EOF" : peek()));
-        System.exit(1);
+        LexicalAnalyzer.Token token = isAtEnd() ? null : peek();
+        String positionInfo = (token != null) ? " at token: '" + token.value + "' (type=" + token.type + ")" : " at end of input";
+        throw new RuntimeException("Syntax Error: " + message + positionInfo);
     }
 }

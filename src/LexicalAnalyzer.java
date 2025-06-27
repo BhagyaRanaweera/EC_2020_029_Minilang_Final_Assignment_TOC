@@ -14,6 +14,33 @@ import java.util.regex.Pattern;
  * --------------------------
  * Updated with comment handling and improved keyword recognition.
  */
+/**
+ * LexicalAnalyzer.java
+ * ---------------------
+ * This program is a **Lexical Analyzer** for a small custom language called MiniLang.
+ * It reads source code from a file (input.minilang), breaks the code into tokens,
+ * and identifies each token's type using regular expressions.
+ *
+ * Key Features:
+ * - Recognizes keywords (e.g., int, if, else, while, print)
+ * - Detects identifiers (like variable names) and numbers
+ * - Supports symbols and operators (=, +, -, *, /, ==, !=, etc.)
+ * - Skips whitespaces and single-line comments (//...)
+ *
+ * Workflow:
+ * 1. Reads the MiniLang code from a file.
+ * 2. Applies a pattern-matching technique to extract valid tokens.
+ * 3. Filters out comments and whitespaces.
+ * 4. Prints all recognized tokens with their types.
+ * 5. Passes the tokens to a Syntax Analyzer for further processing.
+ *
+ * Classes:
+ * - TokenType: Enum listing all possible token types.
+ * - Token: Represents a token with a type and its matched string.
+ *
+ * This Lexical Analyzer is typically the first stage of a compiler.
+ */
+
 public class LexicalAnalyzer {
 
     public enum TokenType {

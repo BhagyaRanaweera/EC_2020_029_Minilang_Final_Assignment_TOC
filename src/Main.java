@@ -1,4 +1,32 @@
 // === Main.java ===
+/**
+ * Main.java
+ * ----------
+ * This is the **driver class** for the MiniLang compiler.
+ * It coordinates the compilation process by running four main stages:
+ *
+ * 1. **Lexical Analysis**:
+ *    - Reads the MiniLang source code from `input.minilang`.
+ *    - Uses `LexicalAnalyzer` to tokenize the code into meaningful units (tokens).
+ *
+ * 2. **Syntax Analysis**:
+ *    - Passes the token list to `SyntaxAnalyzer` to check for grammatical structure.
+ *
+ * 3. **Semantic Analysis**:
+ *    - Ensures the code has meaningful logic (e.g., variables are declared before use).
+ *
+ * 4. **Intermediate Code Generation**:
+ *    - Translates the token stream into intermediate code for further processing or optimization.
+ *
+ * If any stage encounters an error, it prints an appropriate error message.
+ *
+ * Expected Input:
+ * - A file named `input.minilang` must be present in the same directory.
+ *
+ * Output:
+ * - Token list, syntax status, semantic check, and generated intermediate code.
+ */
+
 import java.io.*;
 import java.util.List;
 
